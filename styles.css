@@ -151,19 +151,50 @@ h3{font-size:22px; font-weight:600}
     radial-gradient(900px 500px at 70% 40%, rgba(239,228,201,.05), transparent 60%),
     linear-gradient(180deg, var(--bg2), var(--bg));
 }
+
 .hero-inner{
   display:grid;
   grid-template-columns: 1.05fr .95fr;
   gap:28px;
   align-items:center;
 }
+.logo-wrap{
+  width:min(280px, 72vw);
+  border-radius:22px;
+  padding:14px;
+  border:1px solid rgba(233,222,196,.14);
+  background: radial-gradient(500px 220px at 50% 35%, rgba(239,228,201,.12), rgba(15,27,22,.35) 65%);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  position:relative;
+  overflow:hidden;
+  margin-bottom:18px;
+}
+
+.logo-wrap::after{
+  content:"";
+  position:absolute;
+  inset:-60px;
+  background: radial-gradient(circle at 50% 40%, rgba(239,228,201,.10), transparent 55%);
+  filter: blur(10px);
+  opacity:.9;
+  pointer-events:none;
+}
 
 .logo{
-  width:min(360px, 78vw);
-  margin-bottom:18px;
-  opacity:.95;
-  filter: drop-shadow(0 12px 35px rgba(0,0,0,.35));
+  width:100%;
+  height:auto;
+  display:block;
+  border-radius:16px;
+  opacity:.96;
+  filter: saturate(0.95) contrast(1.02);
 }
+
+.logo{
+  width:160px;          /* try 120–140px */
+  margin-bottom:14px;
+  filter: drop-shadow(0 10px 30px rgba(239,228,201,.25));
+}
+
 
 .badge-row{
   display:flex;
@@ -310,8 +341,8 @@ h3{font-size:22px; font-weight:600}
   overflow:hidden;
   box-shadow: 0 14px 48px rgba(0,0,0,.25);
 }
-.card-top img{width:100%; aspect-ratio: 16/10; object-fit:cover}
-.card-body{padding:16px}
+.card-top img{width:100%; hight: auto; object-fit: contain; display: block;}
+.card-body{padding:14px}
 .card-title{font-family:var(--serif); font-weight:700; font-size:20px}
 .card-sub{color:var(--muted); font-size:13px; margin-top:4px}
 .card-text .mini{margin:12px 0 0; padding-left:18px; color:var(--muted); line-height:1.8}
@@ -319,18 +350,23 @@ h3{font-size:22px; font-weight:600}
 /* WORK THUMBNAILS */
 .thumbs{
   display:grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap:10px;
-  margin-top:18px;
+  grid-template-columns:repeat(3, 1fr);
+  gap:16px;
 }
+.thumbs a:nth-child(5) img{object-position: center 25%}
+
+.thumbs a{
+  display:block;
+}
+
 .thumbs img{
-  border-radius:18px;
-  border:1px solid var(--line);
-  aspect-ratio:1/1;
-  object-fit:cover;
-  box-shadow: 0 14px 40px rgba(0,0,0,.2);
-  transition: transform .15s ease;
+  width:100%;
+  aspect-ratio: 1 / 1;   /* perfect squares */
+  object-fit: cover;     /* crop nicely, no stretching */
+  border-radius:16px;
+  display:block;
 }
+
 .thumbs img:hover{transform: translateY(-2px)}
 
 /* POLICIES */
@@ -397,3 +433,22 @@ h3{font-size:22px; font-weight:600}
   .policy-grid{grid-template-columns:1fr}
   .contact-grid{grid-template-columns:1fr}
 }
+
+/* Nav booking button */
+.nav-cta{
+  padding:8px 14px;
+  border-radius:999px;
+  background:rgba(239,228,201,.14);
+  border:1px solid rgba(239,228,201,.45);
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+  text-decoration:none;
+  line-height:1;
+}
+
+.nav-cta:hover{
+  background:rgba(239,228,201,.22);
+  border-color:rgba(239,228,201,.65);
+}
+
