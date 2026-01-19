@@ -1,10 +1,11 @@
 async function loadManifest() {
-  // Bulletproof: resolves manifest.json against the current page URL
+  // Resolve manifest against current page URL (robust on GitHub Pages)
   const manifestUrl = new URL("manifest.json", window.location.href).toString();
 
   const res = await fetch(manifestUrl, { cache: "no-store" });
-  if (!res.ok) throw new Error("manifest.json missing: " + manifestUrl);
-
+  if (!res.ok) {
+    throw new Error(`Failed to fetch manifest (${res.status}) at: ${manifestUrl}`);
+  }
   return res.json();
 }
 
@@ -22,6 +23,43 @@ function el(tag, props = {}, children = []) {
 function humanIndex(i) {
   const n = String(i + 1).padStart(3, "0");
   return `Photo ${n}`;
+}
+
+// Normalize images so we support both:
+// 1) objects: [{ url, thumb, filename }]
+// 2) strings: ["./full/001.jpg", ...]
+function normalizeImages(images) {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .map((img, i) => {
+      if (typeof img === "string") {
+        const url = img;
+        const filename = url.split("/").pop() || `image-${i + 1}.jpg`;
+        return { url, filename, thumb: url };
+      }
+
+      if (img && typeof img === "object") {
+        const url = img.url;
+        if (!url || typeof url !== "string") return null;
+
+        const filename =
+          (typeof img.filename === "string" && img.filename) ||
+          url.split("/").pop() ||
+          `image-${i + 1}.jpg`;
+
+        const thumb =
+          (typeof img.thumb === "string" && img.thumb) ||
+          url;
+
+        const alt = (typeof img.alt === "string" && img.alt) ? img.alt : "";
+
+        return { url, filename, thumb, alt };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
 }
 
 async function downloadAllAsZip(zipName, images, button) {
@@ -66,87 +104,107 @@ async function downloadAllAsZip(zipName, images, button) {
   try {
     const manifest = await loadManifest();
 
-    titleEl.textContent = manifest.title || "Client Gallery";
-    metaEl.textContent = manifest.subtitle || "";
-    noteEl.textContent = manifest.note || "";
+    // Set header text immediately
+    if (titleEl) titleEl.textContent = manifest.title || "Client Gallery";
+    if (metaEl) metaEl.textContent = manifest.subtitle || "";
+    if (noteEl) noteEl.textContent = manifest.note || "";
 
-    const images = Array.isArray(manifest.images) ? manifest.images : [];
+    // Normalize images so we don't crash if format changes
+    const images = normalizeImages(manifest.images);
 
+    // folder link (simple/manual option)
+    if (openFolderEl) openFolderEl.href = manifest.openFolder || "./full/";
+
+    // If no images, show helpful message
     if (!images.length) {
-      emptyEl.style.display = "block";
+      if (emptyEl) {
+        emptyEl.style.display = "block";
+        emptyEl.textContent =
+          "No images found in manifest. Check manifest.json -> images[] and that /full/ contains files.";
+      }
       return;
     }
 
-    // folder link (simple/manual option)
-    openFolderEl.href = manifest.openFolder || "./full/";
+    // Build tiles safely
+    if (gridEl) {
+      images.forEach((img, i) => {
+        // Defensive guard
+        if (!img || !img.url) return;
 
-    // build tiles
-    images.forEach((img, i) => {
-      const fullUrl = img.url;
-      const thumbUrl = img.thumb || img.url;
-      const filename = img.filename || fullUrl.split("/").pop() || `image-${i + 1}.jpg`;
+        const fullUrl = img.url;
+        const thumbUrl = img.thumb || img.url;
+        const filename = img.filename || fullUrl.split("/").pop() || `image-${i + 1}.jpg`;
 
-      const preview = el(
-        "a",
-        {
-          class: "preview",
-          href: fullUrl,
-          target: "_blank",
-          rel: "noopener",
-        },
-        [
-          el("img", {
-            src: thumbUrl,
-            alt: img.alt || humanIndex(i),
-            loading: "lazy",
-            decoding: "async",
-          }),
-        ]
-      );
+        const preview = el(
+          "a",
+          {
+            class: "preview",
+            href: fullUrl,
+            target: "_blank",
+            rel: "noopener",
+          },
+          [
+            el("img", {
+              src: thumbUrl,
+              alt: img.alt || humanIndex(i),
+              loading: "lazy",
+              decoding: "async",
+            }),
+          ]
+        );
 
-      // Download button: uses HTML download attribute (clean + fast)
-      const downloadBtn = el(
-        "a",
-        {
-          class: "btn-mini",
-          href: fullUrl,
-          download: filename,
-        },
-        [document.createTextNode("Download")]
-      );
+        const downloadBtn = el(
+          "a",
+          {
+            class: "btn-mini",
+            href: fullUrl,
+            download: filename,
+          },
+          [document.createTextNode("Download")]
+        );
 
-      const viewBtn = el(
-        "a",
-        {
-          class: "btn-mini btn-mini-ghost",
-          href: fullUrl,
-          target: "_blank",
-          rel: "noopener",
-        },
-        [document.createTextNode("View")]
-      );
+        const viewBtn = el(
+          "a",
+          {
+            class: "btn-mini btn-mini-ghost",
+            href: fullUrl,
+            target: "_blank",
+            rel: "noopener",
+          },
+          [document.createTextNode("View")]
+        );
 
-      const tileBar = el("div", { class: "tile-bar" }, [
-        el("div", { class: "chip" }, [document.createTextNode(humanIndex(i))]),
-        el("div", { class: "tile-actions" }, [viewBtn, downloadBtn]),
-      ]);
+        const tileBar = el("div", { class: "tile-bar" }, [
+          el("div", { class: "chip" }, [document.createTextNode(humanIndex(i))]),
+          el("div", { class: "tile-actions" }, [viewBtn, downloadBtn]),
+        ]);
 
-      const tile = el("div", { class: "tile" }, [preview, tileBar]);
-      gridEl.appendChild(tile);
-    });
-
-    // ZIP download
-    downloadAllEl.addEventListener("click", (e) => {
-      e.preventDefault();
-      downloadAllAsZip(manifest.zipName, images, downloadAllEl).catch((err) => {
-        console.error(err);
-        downloadAllEl.textContent = "ZIP failed (too many/big files)";
-        setTimeout(() => (downloadAllEl.textContent = "Download all (ZIP)"), 2500);
+        const tile = el("div", { class: "tile" }, [preview, tileBar]);
+        gridEl.appendChild(tile);
       });
-    });
+    }
+
+    // ZIP download (only if button exists)
+    if (downloadAllEl) {
+      downloadAllEl.addEventListener("click", (e) => {
+        e.preventDefault();
+        downloadAllAsZip(manifest.zipName, images, downloadAllEl).catch((err) => {
+          console.error(err);
+          downloadAllEl.textContent = "ZIP failed (too many/big files)";
+          setTimeout(() => (downloadAllEl.textContent = "Download all (ZIP)"), 2500);
+        });
+      });
+    }
+
+    // Hide empty message if we rendered something
+    if (emptyEl) emptyEl.style.display = "none";
   } catch (err) {
-    console.error(err);
-    emptyEl.style.display = "block";
-    emptyEl.textContent = "Gallery not found (manifest.json missing).";
+    console.error("Gallery load failed:", err);
+
+    if (emptyEl) {
+      emptyEl.style.display = "block";
+      // Show the real error so you can debug fast next time
+      emptyEl.textContent = `Gallery failed to load: ${err && err.message ? err.message : err}`;
+    }
   }
 })();
