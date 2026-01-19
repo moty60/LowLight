@@ -1,6 +1,10 @@
 async function loadManifest() {
-  const res = await fetch("./manifest.json", { cache: "no-store" });
-  if (!res.ok) throw new Error("manifest.json missing");
+  // Bulletproof: resolves manifest.json against the current page URL
+  const manifestUrl = new URL("manifest.json", window.location.href).toString();
+
+  const res = await fetch(manifestUrl, { cache: "no-store" });
+  if (!res.ok) throw new Error("manifest.json missing: " + manifestUrl);
+
   return res.json();
 }
 
@@ -82,37 +86,49 @@ async function downloadAllAsZip(zipName, images, button) {
       const thumbUrl = img.thumb || img.url;
       const filename = img.filename || fullUrl.split("/").pop() || `image-${i + 1}.jpg`;
 
-      const preview = el("a", {
-        class: "preview",
-        href: fullUrl,
-        target: "_blank",
-        rel: "noopener"
-      }, [
-        el("img", {
-          src: thumbUrl,
-          alt: img.alt || humanIndex(i),
-          loading: "lazy",
-          decoding: "async"
-        })
-      ]);
+      const preview = el(
+        "a",
+        {
+          class: "preview",
+          href: fullUrl,
+          target: "_blank",
+          rel: "noopener",
+        },
+        [
+          el("img", {
+            src: thumbUrl,
+            alt: img.alt || humanIndex(i),
+            loading: "lazy",
+            decoding: "async",
+          }),
+        ]
+      );
 
       // Download button: uses HTML download attribute (clean + fast)
-      const downloadBtn = el("a", {
-        class: "btn-mini",
-        href: fullUrl,
-        download: filename
-      }, [document.createTextNode("Download")]);
+      const downloadBtn = el(
+        "a",
+        {
+          class: "btn-mini",
+          href: fullUrl,
+          download: filename,
+        },
+        [document.createTextNode("Download")]
+      );
 
-      const viewBtn = el("a", {
-        class: "btn-mini btn-mini-ghost",
-        href: fullUrl,
-        target: "_blank",
-        rel: "noopener"
-      }, [document.createTextNode("View")]);
+      const viewBtn = el(
+        "a",
+        {
+          class: "btn-mini btn-mini-ghost",
+          href: fullUrl,
+          target: "_blank",
+          rel: "noopener",
+        },
+        [document.createTextNode("View")]
+      );
 
       const tileBar = el("div", { class: "tile-bar" }, [
         el("div", { class: "chip" }, [document.createTextNode(humanIndex(i))]),
-        el("div", { class: "tile-actions" }, [viewBtn, downloadBtn])
+        el("div", { class: "tile-actions" }, [viewBtn, downloadBtn]),
       ]);
 
       const tile = el("div", { class: "tile" }, [preview, tileBar]);
@@ -122,12 +138,14 @@ async function downloadAllAsZip(zipName, images, button) {
     // ZIP download
     downloadAllEl.addEventListener("click", (e) => {
       e.preventDefault();
-      downloadAllAsZip(manifest.zipName, images, downloadAllEl).catch(() => {
+      downloadAllAsZip(manifest.zipName, images, downloadAllEl).catch((err) => {
+        console.error(err);
         downloadAllEl.textContent = "ZIP failed (too many/big files)";
         setTimeout(() => (downloadAllEl.textContent = "Download all (ZIP)"), 2500);
       });
     });
   } catch (err) {
+    console.error(err);
     emptyEl.style.display = "block";
     emptyEl.textContent = "Gallery not found (manifest.json missing).";
   }
