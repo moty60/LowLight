@@ -208,3 +208,4 @@ async function downloadAllAsZip(zipName, images, button) {
     }
   }
 })();
+
