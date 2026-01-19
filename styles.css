@@ -138,7 +138,13 @@ h3{font-size:22px; font-weight:600}
 }
 .btn-ghost:hover{border-color:rgba(239,228,201,.35)}
 
-.cta{display:flex; gap:12px; flex-wrap:wrap; margin-top:16px}
+.cta{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  margin-bottom:6px;
+}
 
 /* HERO */
 .hero{
@@ -352,6 +358,7 @@ h3{font-size:22px; font-weight:600}
   display:grid;
   grid-template-columns:repeat(3, 1fr);
   gap:16px;
+  margin-top:6px;
 }
 .thumbs a:nth-child(5) img{object-position: center 25%}
 
