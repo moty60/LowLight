@@ -1,6 +1,5 @@
 import argparse
 import json
-import os
 import re
 import shutil
 import secrets
@@ -23,7 +22,7 @@ def slugify(text: str) -> str:
 def ensure_pillow():
     if Image is None:
         raise SystemExit(
-            "Pillow not installed. Run: pip install pillow\n"
+            "Pillow not installed. Run: python -m pip install pillow\n"
             "Or run this script with --no-thumbs"
         )
 
@@ -46,18 +45,19 @@ def make_thumbs(images, thumbs_dir: Path, max_size=1400, quality=82):
     thumbs_dir.mkdir(parents=True, exist_ok=True)
 
     for img_path in images:
-        out_path = thumbs_dir / img_path.name
+        # thumbnails match the full image name (001.jpg, 002.jpg, ...)
+        out_path = (thumbs_dir / img_path.stem).with_suffix(".jpg")
+
         with Image.open(img_path) as im:
             im = im.convert("RGB")
             im.thumbnail((max_size, max_size))
-            out_path = out_path.with_suffix(".jpg")
             im.save(out_path, format="JPEG", quality=quality, optimize=True, progressive=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Create a Lowlight Studio client gallery")
     parser.add_argument("client_name", help="Client name (used in slug + title)")
-    parser.add_argument("source_folder", help="Folder containing final JPEGs")
+    parser.add_argument("source_folder", help="Folder containing final images (JPEG/PNG/WebP)")
     parser.add_argument("--template", default="c/template", help="Template folder path")
     parser.add_argument("--outroot", default="c", help="Root folder where galleries live")
     parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"), help="Date string")
@@ -76,10 +76,12 @@ def main():
     if not src.exists():
         raise SystemExit(f"Source folder not found: {src}")
 
+    # URL format: clientname-date-token (you asked for this)
     token = args.token or secrets.token_hex(3)  # 6 hex chars
     slug = f"{slugify(args.client_name)}-{args.date}-{token}"
     out_dir = outroot / slug
 
+    # Copy template into new client folder
     copy_template(template_dir, out_dir)
 
     full_dir = out_dir / "full"
@@ -103,7 +105,7 @@ def main():
     if not args.no_thumbs:
         make_thumbs(copied, thumbs_dir, max_size=args.thumb_size, quality=args.thumb_quality)
 
-    # Build manifest
+    # Build manifest.json for your gallery page
     manifest = {
         "title": f"{args.client_name} — Gallery",
         "subtitle": f"Delivered {args.date} · Lowlight Studio",
@@ -118,9 +120,11 @@ def main():
             "url": f"./full/{p.name}",
             "filename": p.name
         }
-        thumb_candidate = thumbs_dir / p.name
+
+        thumb_candidate = (thumbs_dir / p.stem).with_suffix(".jpg")
         if thumb_candidate.exists():
-            item["thumb"] = f"./thumbs/{p.name}"
+            item["thumb"] = f"./thumbs/{thumb_candidate.name}"
+
         manifest["images"].append(item)
 
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -128,7 +132,7 @@ def main():
     print("✅ Gallery created:")
     print(f"   Folder: {out_dir.as_posix()}")
     print(f"   URL:    /c/{slug}/")
-    print("Next: git add/commit/push")
+    print("Next: Commit + Push in GitHub Desktop")
 
 
 if __name__ == "__main__":
