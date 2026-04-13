@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Client Gallery | Lowlight Studio</title>
+
+  <!-- Don't let galleries get indexed -->
+  <meta name="robots" content="noindex,nofollow" />
+
+  <!-- Use your existing global styling -->
+  <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    /* Gallery layout that matches your aesthetic */
+    .gallery-wrap{ padding:72px 0; position:relative; }
+    .gallery-head{
+      display:flex; gap:14px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    .gallery-title{ margin:0; }
+    .gallery-meta{ color:var(--muted); font-size:13px; margin-top:6px; line-height:1.6; max-width:70ch; }
+
+    .gallery-actions{ display:flex; gap:12px; flex-wrap:wrap; }
+
+    .gallery-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:16px;
+      margin-top:18px;
+    }
+
+    /* tile matches your panels/cards */
+    .tile{
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      background:rgba(15,27,22,.55);
+      box-shadow: 0 14px 48px rgba(0,0,0,.25);
+      position:relative;
+    }
+
+    .tile a.preview{
+      display:block;
+      text-decoration:none;
+      color:inherit;
+    }
+
+    .tile img{
+      width:100%;
+      aspect-ratio:1/1;
+      object-fit:cover;
+      display:block;
+      transform: translateZ(0);
+      transition: transform .18s ease;
+    }
+
+    .tile:hover img{
+      transform: scale(1.02);
+    }
+
+    /* overlay controls */
+    .tile-bar{
+      position:absolute;
+      left:10px;
+      right:10px;
+      bottom:10px;
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      align-items:center;
+      pointer-events:none; /* only buttons clickable */
+    }
+
+    .chip{
+      pointer-events:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(233,222,196,.14);
+      background:rgba(10,15,13,.55);
+      color:rgba(239,228,201,.85);
+      font-size:12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .tile-actions{
+      display:flex;
+      gap:10px;
+      pointer-events:auto;
+    }
+
+    /* mini buttons that match your system */
+    .btn-mini{
+      display:inline-block;
+      padding:9px 12px;
+      border-radius:14px;
+      background:rgba(239,228,201,.92);
+      color:#10120f;
+      text-decoration:none;
+      font-weight:800;
+      border:1px solid rgba(0,0,0,.12);
+      font-size:12px;
+      line-height:1;
+      white-space:nowrap;
+    }
+    .btn-mini:hover{ filter:brightness(1.04); }
+
+    .btn-mini-ghost{
+      background:rgba(10,15,13,.35);
+      color:rgba(239,228,201,.90);
+      border:1px solid rgba(239,228,201,.20);
+    }
+    .btn-mini-ghost:hover{ border-color:rgba(239,228,201,.40); }
+
+    .empty{
+      margin-top:18px;
+      color:var(--muted);
+    }
+
+    @media (max-width: 980px){
+      .gallery-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 560px){
+      .gallery-grid{ grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Lowlight Studio Home">
+        <span class="brand-title">LOWLIGHT STUDIO</span>
+        <span class="brand-sub">by Lachlan Richardson</span>
+      </a>
+
+      <nav class="links" aria-label="Primary navigation">
+        <a href="/#services">Services</a>
+        <a href="/#policies">Policies</a>
+        <a href="/#contact">Contact</a>
+        <a class="nav-cta" href="https://lowlight.setmore.com?utm_source=website&utm_medium=gallery_nav" target="_blank" rel="noopener">Book</a>
+      </nav>
+
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+
+    <div class="mobile-menu" id="mobileMenu" aria-hidden="true">
+      <div class="container mobile-links">
+        <a href="/#services">Services</a>
+        <a href="/#policies">Policies</a>
+        <a href="/#contact">Contact</a>
+        <a class="btn" href="https://lowlight.setmore.com?utm_source=website&utm_medium=gallery_mobile" target="_blank" rel="noopener">Book a session</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="gallery-wrap">
+    <div class="container">
+      <div class="gallery-head">
+        <div>
+          <h1 class="gallery-title" id="title">Client Gallery</h1>
+          <div class="gallery-meta" id="meta"></div>
+        </div>
+
+        <div class="gallery-actions">
+          <a class="btn" id="downloadAll" href="#">Download all (ZIP)</a>
+        </div>
+      </div>
+
+      <div class="muted" id="note"></div>
+
+      <div class="gallery-grid" id="grid" aria-live="polite"></div>
+      <div class="empty" id="empty" style="display:none;">No images found. Drop JPEGs into <code>full/</code> and regenerate the manifest.</div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="tiny">© <span id="year"></span> Lowlight Studio by Lachlan Richardson. All rights reserved.</div>
+      <div class="tiny footer-links">
+        <a href="/#policies">Policies</a>
+        <span class="sep">·</span>
+        <a href="/">Home</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JSZip for clean ZIP download -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="./gallery.js"></script>
+
+  <!-- Your existing menu JS can be reused, but easiest: include it inline for gallery pages -->
+  <script>
+    // Footer year
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Mobile menu (same logic you already have)
+    const btn = document.getElementById("menuBtn");
+    const menu = document.getElementById("mobileMenu");
+
+    function setMenu(open) {
+      btn.setAttribute("aria-expanded", String(open));
+      btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+      menu.style.display = open ? "block" : "none";
+      menu.setAttribute("aria-hidden", String(!open));
+    }
+    setMenu(false);
+
+    btn.addEventListener("click", () => {
+      const isOpen = btn.getAttribute("aria-expanded") === "true";
+      setMenu(!isOpen);
+    });
+
+    menu.addEventListener("click", (e) => {
+      const link = e.target.closest("a");
+      if (link) setMenu(false);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") setMenu(false);
+    });
+
+    document.addEventListener("click", (e) => {
+      const isOpen = btn.getAttribute("aria-expanded") === "true";
+      if (!isOpen) return;
+      if (!menu.contains(e.target) && !btn.contains(e.target)) setMenu(false);
+    });
+  </script>
+</body>
+</html>
