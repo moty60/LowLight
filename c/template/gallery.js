@@ -1,3 +1,7 @@
+import { downloadZip } from "https://cdn.jsdelivr.net/npm/client-zip@2.5.0/index.js";
+
+const ZIP_CONCURRENCY = 4;
+
 async function loadManifest() {
   // Resolve manifest against current page URL (robust on GitHub Pages)
   const manifestUrl = new URL("manifest.json", window.location.href).toString();
@@ -62,34 +66,82 @@ function normalizeImages(images) {
     .filter(Boolean);
 }
 
-async function downloadAllAsZip(zipName, images, button) {
-  button.textContent = "Preparing ZIP...";
-  button.style.pointerEvents = "none";
+// Fetches images with a concurrency cap, yielding {name, input} entries
+// for client-zip in original order as each fetch completes.
+async function* concurrentFileEntries(images, concurrency, onProgress) {
+  const total = images.length;
+  const inFlight = new Map();
+  let launched = 0;
 
-  const zip = new JSZip();
-
-  for (let i = 0; i < images.length; i++) {
+  const launch = (i) => {
     const item = images[i];
-    const url = item.url;
-    const filename = item.filename || url.split("/").pop() || `image-${i + 1}.jpg`;
+    inFlight.set(
+      i,
+      fetch(item.url).then((resp) => {
+        if (!resp.ok) throw new Error(`Failed fetching: ${item.url}`);
+        return { name: item.filename, input: resp };
+      })
+    );
+  };
 
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error("Failed fetching: " + url);
-    const blob = await resp.blob();
-    zip.file(filename, blob);
+  while (launched < Math.min(concurrency, total)) {
+    launch(launched);
+    launched++;
   }
 
-  const blob = await zip.generateAsync({ type: "blob" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = zipName || "lowlight-gallery.zip";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(a.href);
+  for (let i = 0; i < total; i++) {
+    const entry = await inFlight.get(i);
+    inFlight.delete(i);
+    onProgress(i + 1, total);
+    if (launched < total) {
+      launch(launched);
+      launched++;
+    }
+    yield entry;
+  }
+}
 
-  button.textContent = "Download all (ZIP)";
-  button.style.pointerEvents = "";
+async function downloadImagesAsZip(zipName, images, button, idleLabel) {
+  if (!images.length || button.dataset.zipping === "1") return;
+
+  button.dataset.zipping = "1";
+  button.style.pointerEvents = "none";
+  const setProgress = (done, total) => {
+    const pct = Math.round((done / total) * 100);
+    button.textContent = `Zipping... ${done}/${total} (${pct}%)`;
+  };
+  setProgress(0, images.length);
+
+  try {
+    const entries = concurrentFileEntries(images, ZIP_CONCURRENCY, setProgress);
+    const zipResponse = downloadZip(entries);
+    const name = zipName || "lowlight-gallery.zip";
+
+    if (window.streamSaver && zipResponse.body && zipResponse.body.pipeTo) {
+      const fileStream = streamSaver.createWriteStream(name);
+      await zipResponse.body.pipeTo(fileStream);
+    } else {
+      // Fallback for browsers without writable-stream support: buffers the
+      // finished zip once (still avoids buffering each source image twice).
+      const blob = await zipResponse.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    button.textContent = idleLabel;
+  } catch (err) {
+    console.error(err);
+    button.textContent = "ZIP failed - try again";
+    setTimeout(() => (button.textContent = idleLabel), 2500);
+  } finally {
+    button.dataset.zipping = "0";
+    button.style.pointerEvents = "";
+  }
 }
 
 (async () => {
@@ -98,8 +150,80 @@ async function downloadAllAsZip(zipName, images, button) {
   const noteEl = document.getElementById("note");
   const gridEl = document.getElementById("grid");
   const emptyEl = document.getElementById("empty");
-  const openFolderEl = document.getElementById("openFolder");
   const downloadAllEl = document.getElementById("downloadAll");
+  const selectToggleEl = document.getElementById("selectToggle");
+  const downloadSelectedEl = document.getElementById("downloadSelected");
+
+  const lightboxEl = document.getElementById("lightbox");
+  const lbImg = document.getElementById("lbImg");
+  const lbCaption = document.getElementById("lbCaption");
+  const lbClose = document.getElementById("lbClose");
+  const lbPrev = document.getElementById("lbPrev");
+  const lbNext = document.getElementById("lbNext");
+
+  let images = [];
+  let selecting = false;
+  const selected = new Set();
+  let lightboxIndex = -1;
+
+  function openLightbox(i) {
+    lightboxIndex = i;
+    const img = images[i];
+    lbImg.src = img.url;
+    lbImg.alt = img.alt || humanIndex(i);
+    lbCaption.textContent = `${humanIndex(i)} of ${images.length}`;
+    lightboxEl.hidden = false;
+  }
+
+  function closeLightbox() {
+    lightboxEl.hidden = true;
+    lbImg.src = "";
+    lightboxIndex = -1;
+  }
+
+  function stepLightbox(delta) {
+    if (lightboxIndex === -1) return;
+    const next = (lightboxIndex + delta + images.length) % images.length;
+    openLightbox(next);
+  }
+
+  lbClose.addEventListener("click", closeLightbox);
+  lbPrev.addEventListener("click", () => stepLightbox(-1));
+  lbNext.addEventListener("click", () => stepLightbox(1));
+  lightboxEl.addEventListener("click", (e) => {
+    if (e.target === lightboxEl) closeLightbox();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (lightboxEl.hidden) return;
+    if (e.key === "Escape") closeLightbox();
+    else if (e.key === "ArrowLeft") stepLightbox(-1);
+    else if (e.key === "ArrowRight") stepLightbox(1);
+  });
+
+  function updateDownloadSelectedLabel() {
+    if (downloadSelectedEl.dataset.zipping === "1") return;
+    downloadSelectedEl.textContent = `Download selected (${selected.size})`;
+    downloadSelectedEl.disabled = selected.size === 0;
+  }
+
+  selectToggleEl.addEventListener("click", () => {
+    selecting = !selecting;
+    gridEl.classList.toggle("selecting", selecting);
+    selectToggleEl.textContent = selecting ? "Cancel select" : "Select photos";
+    downloadSelectedEl.hidden = !selecting;
+    if (!selecting) {
+      selected.clear();
+      gridEl.querySelectorAll(".tile.selected").forEach((t) => t.classList.remove("selected"));
+      gridEl.querySelectorAll(".tile-select input").forEach((c) => (c.checked = false));
+    }
+    updateDownloadSelectedLabel();
+  });
+
+  downloadSelectedEl.addEventListener("click", () => {
+    const chosen = images.filter((_, i) => selected.has(i));
+    const base = (downloadAllEl.dataset.zipName || "lowlight-gallery.zip").replace(/\.zip$/i, "");
+    downloadImagesAsZip(`${base}-selected.zip`, chosen, downloadSelectedEl, `Download selected (${selected.size})`);
+  });
 
   try {
     const manifest = await loadManifest();
@@ -108,12 +232,10 @@ async function downloadAllAsZip(zipName, images, button) {
     if (titleEl) titleEl.textContent = manifest.title || "Client Gallery";
     if (metaEl) metaEl.textContent = manifest.subtitle || "";
     if (noteEl) noteEl.textContent = manifest.note || "";
+    if (downloadAllEl) downloadAllEl.dataset.zipName = manifest.zipName || "lowlight-gallery.zip";
 
     // Normalize images so we don't crash if format changes
-    const images = normalizeImages(manifest.images);
-
-    // folder link (simple/manual option)
-    if (openFolderEl) openFolderEl.href = manifest.openFolder || "./full/";
+    images = normalizeImages(manifest.images);
 
     // If no images, show helpful message
     if (!images.length) {
@@ -135,6 +257,13 @@ async function downloadAllAsZip(zipName, images, button) {
         const thumbUrl = img.thumb || img.url;
         const filename = img.filename || fullUrl.split("/").pop() || `image-${i + 1}.jpg`;
 
+        const imgEl = el("img", {
+          src: thumbUrl,
+          alt: img.alt || humanIndex(i),
+          loading: "lazy",
+          decoding: "async",
+        });
+
         const preview = el(
           "a",
           {
@@ -143,15 +272,12 @@ async function downloadAllAsZip(zipName, images, button) {
             target: "_blank",
             rel: "noopener",
           },
-          [
-            el("img", {
-              src: thumbUrl,
-              alt: img.alt || humanIndex(i),
-              loading: "lazy",
-              decoding: "async",
-            }),
-          ]
+          [imgEl]
         );
+        preview.addEventListener("click", (e) => {
+          e.preventDefault();
+          openLightbox(i);
+        });
 
         const downloadBtn = el(
           "a",
@@ -179,7 +305,23 @@ async function downloadAllAsZip(zipName, images, button) {
           el("div", { class: "tile-actions" }, [viewBtn, downloadBtn]),
         ]);
 
-        const tile = el("div", { class: "tile" }, [preview, tileBar]);
+        const checkbox = el("input", { type: "checkbox", "aria-label": `Select ${humanIndex(i)}` });
+        const selectWrap = el("label", { class: "tile-select" }, [checkbox]);
+
+        const tile = el("div", { class: "tile is-loading" }, [preview, selectWrap, tileBar]);
+
+        const clearLoading = () => tile.classList.remove("is-loading");
+        imgEl.addEventListener("load", clearLoading);
+        imgEl.addEventListener("error", clearLoading);
+        if (imgEl.complete) clearLoading();
+
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) selected.add(i);
+          else selected.delete(i);
+          tile.classList.toggle("selected", checkbox.checked);
+          updateDownloadSelectedLabel();
+        });
+
         gridEl.appendChild(tile);
       });
     }
@@ -188,11 +330,7 @@ async function downloadAllAsZip(zipName, images, button) {
     if (downloadAllEl) {
       downloadAllEl.addEventListener("click", (e) => {
         e.preventDefault();
-        downloadAllAsZip(manifest.zipName, images, downloadAllEl).catch((err) => {
-          console.error(err);
-          downloadAllEl.textContent = "ZIP failed (too many/big files)";
-          setTimeout(() => (downloadAllEl.textContent = "Download all (ZIP)"), 2500);
-        });
+        downloadImagesAsZip(downloadAllEl.dataset.zipName, images, downloadAllEl, "Download all (ZIP)");
       });
     }
 

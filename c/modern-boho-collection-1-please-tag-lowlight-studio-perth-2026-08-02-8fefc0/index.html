@@ -23,10 +23,10 @@
 
     .gallery-actions{ display:flex; gap:12px; flex-wrap:wrap; }
 
+    /* Masonry: columns size each tile to the image's natural aspect ratio */
     .gallery-grid{
-      display:grid;
-      grid-template-columns:repeat(3, minmax(0,1fr));
-      gap:16px;
+      columns: 3 280px;
+      column-gap:16px;
       margin-top:18px;
     }
 
@@ -38,6 +38,19 @@
       background:rgba(15,27,22,.55);
       box-shadow: 0 14px 48px rgba(0,0,0,.25);
       position:relative;
+      break-inside:avoid;
+      margin-bottom:16px;
+    }
+
+    .tile.is-loading{
+      background: linear-gradient(100deg, rgba(233,222,196,.06) 30%, rgba(233,222,196,.16) 50%, rgba(233,222,196,.06) 70%);
+      background-size:200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      min-height:180px;
+    }
+    @keyframes shimmer{
+      0%{ background-position:200% 0; }
+      100%{ background-position:-200% 0; }
     }
 
     .tile a.preview{
@@ -48,15 +61,100 @@
 
     .tile img{
       width:100%;
-      aspect-ratio:1/1;
-      object-fit:cover;
+      height:auto;
+      max-height:80vh;
+      object-fit:contain;
       display:block;
       transform: translateZ(0);
-      transition: transform .18s ease;
+      transition: opacity .25s ease, transform .18s ease;
     }
+
+    .tile.is-loading img{ opacity:0; }
 
     .tile:hover img{
       transform: scale(1.02);
+    }
+
+    /* SELECT MODE */
+    .tile-select{
+      position:absolute;
+      top:10px;
+      left:10px;
+      z-index:2;
+      display:none;
+    }
+    #grid.selecting .tile-select{ display:block; }
+    .tile-select input{
+      width:20px;
+      height:20px;
+      accent-color: var(--accent);
+      cursor:pointer;
+    }
+    .tile.selected{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+    /* LIGHTBOX */
+    .lightbox{
+      position:fixed;
+      inset:0;
+      z-index:50;
+      background:rgba(6,9,8,.94);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .lightbox[hidden]{ display:none; }
+    .lb-img{
+      max-width:min(92vw,1400px);
+      max-height:88vh;
+      width:auto;
+      height:auto;
+      object-fit:contain;
+      border-radius:12px;
+      box-shadow:var(--shadow);
+    }
+    .lb-close, .lb-nav{
+      position:absolute;
+      border-radius:999px;
+      border:1px solid var(--line2);
+      background:rgba(10,15,13,.55);
+      color:var(--text);
+      cursor:pointer;
+      width:44px;
+      height:44px;
+      font-size:22px;
+      line-height:1;
+    }
+    .lb-close{ top:18px; right:20px; }
+    .lb-nav{ top:50%; transform:translateY(-50%); }
+    .lb-prev{ left:16px; }
+    .lb-next{ right:16px; }
+    .lb-close:hover, .lb-nav:hover{ border-color:rgba(239,228,201,.45); }
+    .lb-caption{
+      position:absolute;
+      bottom:18px;
+      left:0; right:0;
+      text-align:center;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    /* BANNER + FOOTER NOTES */
+    .banner-note{
+      background:rgba(239,228,201,.10);
+      border-bottom:1px solid var(--line);
+      color:var(--text);
+      font-size:13px;
+      text-align:center;
+      padding:10px 14px;
+      line-height:1.5;
+    }
+    .footer-note{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.6;
+      max-width:70ch;
     }
 
     /* overlay controls */
@@ -121,10 +219,10 @@
     }
 
     @media (max-width: 980px){
-      .gallery-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+      .gallery-grid{ columns: 2 240px; }
     }
     @media (max-width: 560px){
-      .gallery-grid{ grid-template-columns:1fr; }
+      .gallery-grid{ columns: 1; }
     }
   </style>
 </head>
@@ -159,6 +257,10 @@
     </div>
   </header>
 
+  <div class="banner-note">
+    Please tag <strong>@lowlight_studio_perth</strong> on all Instagram posts and <strong>@LachlanRichardson</strong> on Facebook.
+  </div>
+
   <main class="gallery-wrap">
     <div class="container">
       <div class="gallery-head">
@@ -168,6 +270,8 @@
         </div>
 
         <div class="gallery-actions">
+          <button class="btn btn-ghost" id="selectToggle" type="button">Select photos</button>
+          <button class="btn" id="downloadSelected" type="button" hidden>Download selected (0)</button>
           <a class="btn" id="downloadAll" href="#">Download all (ZIP)</a>
         </div>
       </div>
@@ -179,20 +283,34 @@
     </div>
   </main>
 
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" id="lbClose" aria-label="Close">&times;</button>
+    <button class="lb-nav lb-prev" id="lbPrev" aria-label="Previous image">&#8249;</button>
+    <img class="lb-img" id="lbImg" alt="" />
+    <button class="lb-nav lb-next" id="lbNext" aria-label="Next image">&#8250;</button>
+    <div class="lb-caption" id="lbCaption"></div>
+  </div>
+
   <footer class="footer">
-    <div class="container footer-inner">
-      <div class="tiny">© <span id="year"></span> Lowlight Studio by Lachlan Richardson. All rights reserved.</div>
-      <div class="tiny footer-links">
-        <a href="/#policies">Policies</a>
-        <span class="sep">·</span>
-        <a href="/">Home</a>
+    <div class="container">
+      <div class="footer-inner">
+        <div class="tiny">© <span id="year"></span> Lowlight Studio by Lachlan Richardson. All rights reserved.</div>
+        <div class="tiny footer-links">
+          <a href="/#policies">Policies</a>
+          <span class="sep">·</span>
+          <a href="/">Home</a>
+        </div>
+      </div>
+      <div class="footer-note">
+        These photos are for social media and personal use only. Not for commercial use without discussing licensing with Lowlight Studio.
       </div>
     </div>
   </footer>
 
-  <!-- JSZip for clean ZIP download -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="./gallery.js"></script>
+  <!-- Streaming ZIP: client-zip streams entries without buffering the whole archive,
+       StreamSaver pipes that stream straight to disk instead of holding it in browser memory -->
+  <script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js"></script>
+  <script type="module" src="./gallery.js"></script>
 
   <!-- Your existing menu JS can be reused, but easiest: include it inline for gallery pages -->
   <script>
