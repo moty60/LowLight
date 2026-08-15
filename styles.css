@@ -160,7 +160,7 @@ h3{font-size:22px; font-weight:600}
 
 .hero-inner{
   display:grid;
-  grid-template-columns: 1.05fr .95fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
   gap:28px;
   align-items:center;
 }
@@ -243,7 +243,7 @@ h3{font-size:22px; font-weight:600}
 /* PANELS / LAYOUT */
 .split{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:16px;
   margin-top:18px;
 }
@@ -356,7 +356,7 @@ h3{font-size:22px; font-weight:600}
 /* WORK THUMBNAILS */
 .thumbs{
   display:grid;
-  grid-template-columns:repeat(3, 1fr);
+  grid-template-columns:repeat(3, minmax(0, 1fr));
   gap:16px;
   margin-top:6px;
 }
