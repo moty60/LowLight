@@ -341,13 +341,33 @@ h3{font-size:clamp(22px,2vw,30px); font-weight:600; line-height:1.08}
 @media (max-width: 980px){.mobile-links .btn { display:none; }}
 
 @media (max-width: 600px){
-  .section{padding:78px 0}
-  .hero-inner{gap:20px}
+  .nav-inner{padding:10px 0}
+  .brand-title{letter-spacing:.14em; font-size:11px}
+  .brand-sub{font-size:9px; letter-spacing:.06em}
+  .section{padding:30px 0 26px}
+  .hero{
+    padding-top:86px;
+    padding-bottom:8px;
+  }
+  .hero-inner{
+    gap:18px;
+    min-height:0;
+  }
+  .hero-copy h1{
+    font-size:clamp(40px, 14vw, 58px);
+    line-height:.9;
+    letter-spacing:-.04em;
+  }
+  .lead{font-size:1rem}
+  .badge-row{gap:8px}
+  .badge{font-size:10px; padding:7px 10px}
   .cta{flex-direction:column; align-items:flex-start}
   .btn{width:auto}
-  .logo-wrap{margin-bottom:14px}
-  .about-visual img{min-height:420px}
-  .thumb, .thumb.tall, .thumb.wide{min-height:260px}
+  .logo-wrap{width:min(190px, 54vw); margin-bottom:14px}
+  .about-visual img{min-height:320px}
+  .thumbs{columns:2 150px; column-gap:12px}
+  .thumb{margin-bottom:12px}
+  .thumb, .thumb.tall, .thumb.wide{min-height:220px}
   .feature-strip-inner{padding-bottom:18px}
 }
 .how{
