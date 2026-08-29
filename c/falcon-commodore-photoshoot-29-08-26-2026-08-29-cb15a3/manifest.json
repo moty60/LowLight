@@ -1,8 +1,8 @@
 {
-  "title": "Falcon/Cpmmodore Photoshoot 29/08/26 \u2014 Gallery",
+  "title": "Falcon / Commodore Photoshoot 29/08/26 \u2014 Gallery",
   "subtitle": "Delivered 2026-08-29 \u00b7 Lowlight Studio",
   "note": "These are your final edits. Please avoid heavy filters that significantly change the delivered look.",
-  "zipName": "falcon-cpmmodore-photoshoot-29-08-26-lowlight.zip",
+  "zipName": "falcon-commodore-photoshoot-29-08-26-lowlight.zip",
   "openFolder": "./full/",
   "images": [
     {
@@ -184,6 +184,26 @@
       "url": "./full/036.jpg",
       "filename": "036.jpg",
       "thumb": "./thumbs/036.jpg"
+    },
+    {
+      "url": "./full/037.jpg",
+      "filename": "037.jpg",
+      "thumb": "./thumbs/037.jpg"
+    },
+    {
+      "url": "./full/038.jpg",
+      "filename": "038.jpg",
+      "thumb": "./thumbs/038.jpg"
+    },
+    {
+      "url": "./full/039.jpg",
+      "filename": "039.jpg",
+      "thumb": "./thumbs/039.jpg"
+    },
+    {
+      "url": "./full/040.jpg",
+      "filename": "040.jpg",
+      "thumb": "./thumbs/040.jpg"
     }
   ]
 }
