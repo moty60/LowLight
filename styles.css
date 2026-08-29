@@ -121,17 +121,33 @@ h3{font-size:clamp(22px,2vw,30px); font-weight:600; line-height:1.08}
 .hero{
   position:relative;
   overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:100vh;
+  min-height:100dvh;
   border-bottom:1px solid var(--line);
   background:
-    linear-gradient(90deg, rgba(10,13,12,.72), rgba(10,13,12,.22)),
+    linear-gradient(90deg, rgba(10,13,12,.72) 0%, rgba(10,13,12,.44) 26%, rgba(10,13,12,.18) 60%, rgba(10,13,12,.5) 100%),
     url("please%20use/parkerville_64.jpg") center center / cover no-repeat;
-  padding:110px 0 12px;
+  padding:110px 0 0;
+}
+
+.hero::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg, rgba(4,8,8,.62) 0%, rgba(4,8,8,.38) 32%, rgba(4,8,8,.22) 52%, rgba(4,8,8,.5) 100%);
+  pointer-events:none;
 }
 
 .hero-inner{
+  position:relative;
+  z-index:1;
   display:flex;
   align-items:center;
-  min-height:260px;
+  min-height:0;
+  flex:1;
 }
 .hero-copy{
   position:relative;
@@ -155,12 +171,7 @@ h3{font-size:clamp(22px,2vw,30px); font-weight:600; line-height:1.08}
   text-align:center;
 }
 .logo-wrap::after{
-  content:"";
-  position:absolute;
-  inset:-60px;
-  background: radial-gradient(circle at 50% 40%, rgba(243,234,216,.14), transparent 55%);
-  filter: blur(10px);
-  pointer-events:none;
+  content:none;
 }
 .logo{display:block; width:160px; margin:0 auto 14px; filter: drop-shadow(0 12px 30px rgba(243,234,216,.18))}
 
