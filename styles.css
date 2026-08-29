@@ -133,7 +133,13 @@ h3{font-size:clamp(22px,2vw,30px); font-weight:600; line-height:1.08}
   align-items:center;
   min-height:260px;
 }
-.hero-copy{position:relative; z-index:1; max-width:620px}
+.hero-copy{
+  position:relative;
+  z-index:1;
+  max-width:620px;
+  width:100%;
+  margin:0 auto;
+}
 
 .logo-wrap{
   width:min(260px, 72vw);
